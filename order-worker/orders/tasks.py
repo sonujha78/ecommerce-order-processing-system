@@ -28,6 +28,15 @@ def send_to_dlq(payload, reason):
     logger.error(f"Order {payload.get('order_id')} sent to DLQ: {reason}")
 
 
+def mark_failed_and_dlq(order_id, payload, reason):
+    if order_id and Order.objects.filter(order_id=order_id).exists():
+        Order.objects.filter(order_id=order_id).update(status="failed")
+        OrderEvent.objects.create(order_id=order_id, event_type="order.failed", payload={"error": reason})
+    else:
+        logger.warning(f"Order {order_id} not found in DB — skipping status/event update, sending straight to DLQ.")
+    send_to_dlq(payload, reason)
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def process_order(self, payload):
     order_id = payload.get("order_id")
@@ -35,7 +44,6 @@ def process_order(self, payload):
     try:
         order = Order.objects.get(order_id=order_id)
 
-        # Idempotency: if already in a terminal state, a redelivered message is a no-op
         if order.status in ("confirmed", "failed"):
             logger.info(f"Order {order_id} already in terminal state '{order.status}' — skipping (idempotent).")
             return f"Order {order_id} already handled"
@@ -60,19 +68,16 @@ def process_order(self, payload):
         return f"Order {order_id} confirmed"
 
     except ValueError as e:
-        # business failure (insufficient stock) — not retried, straight to failed
         Order.objects.filter(order_id=order_id).update(status="failed")
         OrderEvent.objects.create(order_id=order_id, event_type="order.failed", payload={"error": str(e)})
         logger.warning(f"Order {order_id} failed: {e}")
         return f"Order {order_id} failed: {e}"
 
     except Exception as e:
-        logger.error(f"Error processing order {order_id}: {e}")
-        try:
-            raise self.retry(exc=e)
-        except self.MaxRetriesExceededError:
-            if order_id:
-                Order.objects.filter(order_id=order_id).update(status="failed")
-                OrderEvent.objects.create(order_id=order_id, event_type="order.failed", payload={"error": str(e)})
-            send_to_dlq(payload, str(e))
+        logger.error(f"Error processing order {order_id} (attempt {self.request.retries + 1}/{self.max_retries + 1}): {e}")
+
+        if self.request.retries >= self.max_retries:
+            mark_failed_and_dlq(order_id, payload, str(e))
             return f"Order {order_id} moved to DLQ after max retries"
+
+        raise self.retry(exc=e)
