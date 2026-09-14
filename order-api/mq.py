@@ -1,35 +1,22 @@
-import pika
 import os
-import json
+from celery import Celery
 from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_rabbitmq_connection():
-    credentials = pika.PlainCredentials(
-        os.getenv("RABBITMQ_USER"),
-        os.getenv("RABBITMQ_PASSWORD")
-    )
-    return pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=os.getenv("RABBITMQ_HOST"),
-            port=int(os.getenv("RABBITMQ_PORT")),
-            credentials=credentials
-        )
-    )
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
+RABBITMQ_PORT = os.getenv("RABBITMQ_PORT")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
+
+BROKER_URL = f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:{RABBITMQ_PORT}//"
+
+celery_client = Celery("order_api_client", broker=BROKER_URL)
+
 
 def publish_order_created(order_payload: dict):
-    connection = get_rabbitmq_connection()
-    channel = connection.channel()
-
-    channel.exchange_declare(exchange="orders_exchange", exchange_type="direct", durable=True)
-    channel.queue_declare(queue="order.created", durable=True)
-    channel.queue_bind(queue="order.created", exchange="orders_exchange", routing_key="order.created")
-
-    channel.basic_publish(
-        exchange="orders_exchange",
-        routing_key="order.created",
-        body=json.dumps(order_payload),
-        properties=pika.BasicProperties(delivery_mode=2)  # persistent message
+    celery_client.send_task(
+        "orders.tasks.process_order",
+        args=[order_payload],
+        queue="order_processing"
     )
-    connection.close()
