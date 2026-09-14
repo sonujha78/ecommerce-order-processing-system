@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-config
+  namespace: ecommerce
+data:
+  MYSQL_HOST: "mysql-service"
+  MYSQL_PORT: "3306"
+  MYSQL_DB: "ordersDB"
+  RABBITMQ_HOST: "rabbitmq-service"
+  RABBITMQ_PORT: "5672"
