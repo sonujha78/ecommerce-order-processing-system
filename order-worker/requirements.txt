@@ -7,10 +7,14 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 Django==5.1.15
+iniconfig==2.3.0
 kombu==5.6.2
 packaging==26.3
+pluggy==1.6.0
 prompt_toolkit==3.0.53
+Pygments==2.21.0
 PyMySQL==1.2.0
+pytest==9.1.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 six==1.17.0
