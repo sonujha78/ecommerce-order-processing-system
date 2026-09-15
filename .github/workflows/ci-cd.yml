@@ -29,6 +29,16 @@ jobs:
 
       - name: Run Order Worker tests
         working-directory: ./order-worker
+        env:
+          MYSQL_HOST: localhost
+          MYSQL_PORT: "3306"
+          MYSQL_USER: root
+          MYSQL_PASSWORD: rootpass
+          MYSQL_DB: ordersDB
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: "5672"
+          RABBITMQ_USER: guest
+          RABBITMQ_PASSWORD: guest
         run: |
           pip install -r requirements.txt
           python manage.py test orders
