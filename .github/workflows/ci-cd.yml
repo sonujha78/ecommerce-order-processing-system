@@ -1,0 +1,84 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/order-api
+  IMAGE_WORKER: ghcr.io/${{ github.repository_owner }}/order-worker
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Order API tests
+        working-directory: ./order-api
+        run: |
+          pip install -r requirements.txt
+          pytest test_main.py -v
+
+      - name: Run Order Worker tests
+        working-directory: ./order-worker
+        run: |
+          pip install -r requirements.txt
+          python manage.py test orders
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push order-api image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./order-api
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:${{ github.sha }}
+            ${{ env.IMAGE_API }}:latest
+
+      - name: Build and push order-worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./order-worker
+          push: true
+          tags: |
+            ${{ env.IMAGE_WORKER }}:${{ github.sha }}
+            ${{ env.IMAGE_WORKER }}:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deployment notice
+        run: |
+          echo "Images pushed: ${{ env.IMAGE_API }}:${{ github.sha }} and ${{ env.IMAGE_WORKER }}:${{ github.sha }}"
+          echo "In a real cluster with kubeconfig access, this job would run:"
+          echo "  kubectl set image deployment/order-api order-api=${{ env.IMAGE_API }}:${{ github.sha }} -n ecommerce"
+          echo "  kubectl set image deployment/order-worker order-worker=${{ env.IMAGE_WORKER }}:${{ github.sha }} -n ecommerce"
+          echo "This step is a placeholder since our cluster is a local minikube instance not reachable from GitHub's runners."
