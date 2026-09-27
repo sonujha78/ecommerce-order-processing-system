@@ -6,6 +6,7 @@ metadata:
   annotations:
     github.com/project-slug: sonujha78/ecommerce-order-processing-system
     backstage.io/kubernetes-id: ecommerce-order-processing-system
+    backstage.io/techdocs-ref: dir:.
   links:
     - url: https://github.com/sonujha78/ecommerce-order-processing-system
       title: GitHub Repo
