@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ecommerce-order-processing-system
+  description: Async, message-queue driven order processing system with FastAPI Order API and Celery/pika Order Worker
+  annotations:
+    github.com/project-slug: sonujha78/ecommerce-order-processing-system
+    backstage.io/kubernetes-id: ecommerce-order-processing-system
+  links:
+    - url: https://github.com/sonujha78/ecommerce-order-processing-system
+      title: GitHub Repo
+      icon: github
+spec:
+  type: service
+  lifecycle: production
+  owner: guests
+  system: ecommerce
+  dependsOn:
+    - resource:default/ecommerce-mysql
+    - resource:default/ecommerce-rabbitmq
