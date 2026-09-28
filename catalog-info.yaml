@@ -14,7 +14,7 @@ metadata:
 spec:
   type: service
   lifecycle: production
-  owner: guests
+  owner: payments-team
   system: ecommerce
   dependsOn:
     - resource:default/ecommerce-mysql
